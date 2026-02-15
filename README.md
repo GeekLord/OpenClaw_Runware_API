@@ -1,5 +1,10 @@
 # runware-image
 
+[![GitHub Author](https://img.shields.io/badge/Author-GeekLord-181717?style=flat&logo=github)](https://github.com/GeekLord/)
+[![Repository](https://img.shields.io/badge/Repository-OpenClaw__Runware__API-blue?style=flat&logo=github)](https://github.com/GeekLord/OpenClaw_Runware_API)
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue?style=flat&logo=python)](https://www.python.org/)
+
+
 Runware Image Skill - a small CLI skill to generate images on-demand via the Runware.ai Image Inference API.
 
 This repository contains an OpenClaw-style skill that provides a Python CLI script to submit text-to-image tasks to Runware, save generated images locally, and includes tests, examples, and CI configuration to make the skill production-ready for publishing to ClawHub (or GitHub first).
@@ -22,6 +27,18 @@ This repository contains an OpenClaw-style skill that provides a Python CLI scri
 - `examples/` - Example CLI commands.
 - `.github/workflows/ci.yml` - GitHub Actions CI workflow to run tests.
 - `LICENSE`, `CONTRIBUTING.md` - Project metadata.
+
+## System Architecture
+
+```mermaid
+graph TD
+    User[User / Terminal] -->|Run| Script[scripts/generate_image.py]
+    Script -->|Load| Env[.env]
+    Script -->|Load| Config[skill-config.json]
+    Script -->|POST /run| Runware[Runware.ai API]
+    Runware -->|JSON Response| Script
+    Script -->|Decode & Save| Image[Output Image]
+```
 
 ## Quick Start (GitHub)
 
@@ -88,6 +105,10 @@ I can assist with creating the .skill package and publishing to ClawHub when you
 ## Contributing
 
 See `CONTRIBUTING.md` for contribution guidelines. Keep changes small, include tests, and run CI locally.
+
+## Author
+
+- **Shobhit Kumar Prabhaar** - [GitHub Profile](https://github.com/GeekLord/)
 
 ## License
 
