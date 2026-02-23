@@ -56,8 +56,11 @@ def validate_prompt(prompt: str):
             raise RuntimeError("Prompt appears to reference a minor. Please confirm subject is 21+ and retry.")
 
 
-def call_runware_generate(api_key: str, prompt: str, size: str = "1024x1024", output_format: str = "PNG", sync: bool = True, number_results: int = 1) -> dict:
-    """Call Runware task API and return the parsed JSON response."""
+def call_runware_generate(api_key: str, prompt: str, size: str = "1024x1024", output_format: str = "PNG", sync: bool = True, number_results: int = 1, model: str = None) -> dict:
+    """Call Runware task API and return the parsed JSON response.
+
+    model: optional Runware model spec (e.g. "runware:400@4"). If None, the skill default is used.
+    """
     url = "https://api.runware.ai/v1/tasks"
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -71,7 +74,8 @@ def call_runware_generate(api_key: str, prompt: str, size: str = "1024x1024", ou
         "positivePrompt": prompt,
         "height": int(size.split("x")[1]) if "x" in size else 1024,
         "width": int(size.split("x")[0]) if "x" in size else 1024,
-        "model": "runware:101@1",
+        # Allow overriding model via parameter; fall back to a safe default if not provided
+        "model": model or "runware:101@1",
         "steps": 30,
         "CFGScale": 7.5,
         "numberResults": number_results,
@@ -122,6 +126,8 @@ def main():
     p.add_argument("--outfile", default=None, help="Output filename (saved to Downloads if not an absolute path)")
     p.add_argument("--size", default=None)
     p.add_argument("--sync", action="store_true", help="Request synchronous delivery (wait for result in response). If not set, an async/task id may be returned and you must poll or use webhooks.")
+    p.add_argument("--model", default=None, help="Optional Runware model spec (e.g. runware:400@4)")
+    p.add_argument("--num-results", type=int, default=1, help="Number of images to request from the model in one task")
     args = p.parse_args()
 
     prompt = args.prompt
@@ -133,7 +139,7 @@ def main():
     out_format = cfg.get("default_format", "png")
 
     print("Sending task to Runware...")
-    resp = call_runware_generate(api_key, prompt, size=size, output_format=out_format.upper(), sync=args.sync)
+    resp = call_runware_generate(api_key, prompt, size=size, output_format=out_format.upper(), sync=args.sync, number_results=args.num_results, model=args.model)
 
     # Extract base64 image data
     b64 = extract_base64_from_response(resp)
