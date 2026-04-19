@@ -67,7 +67,7 @@ pip install -r requirements.txt
 python scripts/generate_image.py --prompt "A photorealistic portrait of an adult (age 28)" --sync --outfile "portrait.png"
 ```
 
-By default, images are saved under `~/runware_images/` unless you provide an absolute path or a relative filename, and the script remembers the last directory used.
+By default, images are saved under `~/runware_images/` unless you provide an absolute path or a relative filename. The script also remembers the last directory used.
 
 ## Configuration
 
@@ -75,7 +75,7 @@ By default, images are saved under `~/runware_images/` unless you provide an abs
 
 - `default_size` - default image size (e.g., "1024x1024").
 - `default_format` - output format (png/jpg/webp).
-- `default_output_dir` - default output directory (e.g., "~\\runware_images").
+- `default_output_dir` - default output directory (for example, `~/runware_images` on Unix-like systems).
 - `last_output_dir` - automatically updated by the script to remember the last save location.
 
 Do NOT store API keys in this file. Use the `RUNWARE_API_KEY` environment variable or a secret manager.
@@ -92,7 +92,9 @@ Do NOT store API keys in this file. Use the `RUNWARE_API_KEY` environment variab
 
 Run tests locally:
 
-  pytest -q
+```bash
+pytest -q
+```
 
 ## Examples
 
