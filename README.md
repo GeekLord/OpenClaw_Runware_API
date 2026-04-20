@@ -44,14 +44,18 @@ graph TD
 
 1. Clone the repository:
 
-  git clone <repo-url>
-  cd runware-image
+```bash
+git clone <repo-url>
+cd runware-image
+```
 
 2. Create a Python virtual environment and install deps:
 
-  python -m venv .venv
-  source .venv/bin/activate # or .\.venv\Scripts\activate on Windows
-  pip install -r requirements.txt
+```bash
+python -m venv .venv
+source .venv/bin/activate # or .\.venv\Scripts\activate on Windows
+pip install -r requirements.txt
+```
 
 3. Set your Runware API key.
    - Create a `.env` file in the root of the skill: `RUNWARE_API_KEY=your_key`
@@ -59,9 +63,11 @@ graph TD
 
 4. Generate an image (sync):
 
-  python scripts/generate_image.py --prompt "A photorealistic portrait of an adult (age 28)" --sync --outfile "portrait.png"
+```bash
+python scripts/generate_image.py --prompt "A photorealistic portrait of an adult (age 28)" --sync --outfile "portrait.png"
+```
 
-By default, images are saved under `~/runware_images/` unless you provide an absolute path or a relative filename (the script will remember the last directory used).
+By default, images are saved under `~/runware_images/` unless you provide an absolute path or a relative filename. The script also remembers the last directory used.
 
 ## Configuration
 
@@ -69,7 +75,7 @@ By default, images are saved under `~/runware_images/` unless you provide an abs
 
 - `default_size` - default image size (e.g., "1024x1024").
 - `default_format` - output format (png/jpg/webp).
-- `default_output_dir` - default output directory (e.g., "~\\runware_images").
+- `default_output_dir` - default output directory (for example, `~/runware_images` on Unix-like systems).
 - `last_output_dir` - automatically updated by the script to remember the last save location.
 
 Do NOT store API keys in this file. Use the `RUNWARE_API_KEY` environment variable or a secret manager.
@@ -86,7 +92,9 @@ Do NOT store API keys in this file. Use the `RUNWARE_API_KEY` environment variab
 
 Run tests locally:
 
-  pytest -q
+```bash
+pytest -q
+```
 
 ## Examples
 
