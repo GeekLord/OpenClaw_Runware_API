@@ -8,3 +8,10 @@ __pycache__/
 .venv/
 env/
 venv/
+
+# Output images/media
+runware_output/
+
+# OS files
+.DS_Store
+Thumbs.db

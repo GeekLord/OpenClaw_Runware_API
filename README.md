@@ -1,127 +1,190 @@
-# runware-image
+# runware-mcp
 
 [![GitHub Author](https://img.shields.io/badge/Author-GeekLord-181717?style=flat&logo=github)](https://github.com/GeekLord/)
 [![Repository](https://img.shields.io/badge/Repository-OpenClaw__Runware__API-blue?style=flat&logo=github)](https://github.com/GeekLord/OpenClaw_Runware_API)
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue?style=flat&logo=python)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat&logo=python)](https://www.python.org/)
 
+**Multi-modal Runware.ai skill** — image, video, audio, text, and 3D generation via the official `runware-sdk` Python library, plus MCP-style tooling.
 
-Runware Image Skill - a small CLI skill to generate images on-demand via the Runware.ai Image Inference API.
-
-This repository contains an OpenClaw-style skill that provides a Python CLI script to submit text-to-image tasks to Runware, save generated images locally, and includes tests, examples, and CI configuration to make the skill production-ready for publishing to ClawHub (or GitHub first).
+This repository contains an OpenClaw-compatible skill that connects to [Runware.ai's MCP server](https://runware.ai/mcp) and exposes a clean Python CLI for generating media, browsing models, checking pricing, and managing your account.
 
 ## Features
 
-- Submit text-to-image tasks to Runware's task API (imageInference).
-- Default synchronous generation (returns base64 image data) with support for async/webhook workflows.
-- Safe-by-default prompt validation to reduce the risk of generating images of minors.
-- Default output directory: `~/runware_images` (created automatically). The script remembers the last used output directory.
-- Minimal dependencies. Tests can be configured to run in CI with secrets for integration or skipped when no RUNWARE_API_KEY is present.
+- **Multi-modal** — Generate images, videos, audio, text, and 3D models
+- **Official SDK** — Uses `runware-sdk` (async, typed, JSON-Schema validated)
+- **MCP integration** — MCP-style tools (`run`, `list-models`, `model-pricing`, `model-details`, `account`)
+- **Hosted MCP server** — Can connect directly to `https://mcp.runware.ai` (OAuth 2.1, no local install needed)
+- **Sync + async** — Sync delivery for fast tasks, async polling for long-running ones
+- **Safe-by-default** — Lightweight prompt filtering
+- **Configurable** — Default model, size, format via `skill-config.json`
+- **Tested** — Pytest unit tests + optional integration tests
 
-## Contents
-
-- `SKILL.md` - Skill metadata and usage guidance (required by OpenClaw skills).
-- `skill-config.json` - Default settings (no secrets). Contains `default_size`, `default_format`, and `default_output_dir`.
-- `scripts/generate_image.py` - Primary CLI script (Python 3.8+).
-- `requirements.txt` - Minimal dependencies.
-- `tests/test_generate_image.py` - Pytest unit test that mocks Runware responses.
-- `examples/` - Example CLI commands.
-- `.github/workflows/ci.yml` - GitHub Actions CI workflow to run tests.
-- `LICENSE`, `CONTRIBUTING.md` - Project metadata.
-
-## System Architecture
-
-```mermaid
-graph TD
-    User[User / Terminal] -->|Run| Script[scripts/generate_image.py]
-    Script -->|Load| Env[.env]
-    Script -->|Load| Config[skill-config.json]
-    Script -->|POST /run| Runware[Runware.ai API]
-    Runware -->|JSON Response| Script
-    Script -->|Decode & Save| Image[Output Image]
-```
-
-## Quick Start (GitHub)
-
-1. Clone the repository:
+## Quick Start
 
 ```bash
-git clone <repo-url>
-cd runware-image
-```
-
-2. Create a Python virtual environment and install deps:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate # or .\.venv\Scripts\activate on Windows
+# Install dependencies
 pip install -r requirements.txt
+
+# Set your API key
+echo "RUNWARE_API_KEY=your_key_here" > .env
+
+# Generate an image
+python scripts/generate.py --prompt "A serene mountain landscape" --mode image --outfile landscape.png
+
+# Generate a video
+python scripts/generate.py --prompt "Waves crashing on a beach" --mode video --duration 8 --outfile waves.mp4
+
+# Browse models via MCP-style CLI
+python scripts/runware_mcp.py list-models --category image --search "flux"
+
+# Check account balance
+python scripts/runware_mcp.py account
 ```
 
-3. Set your Runware API key.
-   - Create a `.env` file in the root of the skill: `RUNWARE_API_KEY=your_key`
-   - OR set it in the environment: `$env:RUNWARE_API_KEY = "<YOUR_KEY>"`
+## MCP Server Connection
 
-4. Generate an image (sync):
+### 1. Hosted (easiest — no install)
 
-```bash
-python scripts/generate_image.py --prompt "A photorealistic portrait of an adult (age 28)" --sync --outfile "portrait.png"
+Any MCP-compatible client can connect to Runware's hosted server:
+
+```json
+{
+  "mcpServers": {
+    "runware": { "url": "https://mcp.runware.ai" }
+  }
+}
 ```
 
-By default, images are saved under `~/runware_images/` unless you provide an absolute path or a relative filename. The script also remembers the last directory used.
+Authentication is handled via OAuth 2.1 — your API key stays server-side, encrypted in the OAuth session.
+
+### 2. Local (self-hosted)
+
+```json
+{
+  "mcpServers": {
+    "runware": {
+      "command": "npx",
+      "args": ["-y", "@runware/mcp"],
+      "env": { "RUNWARE_API_KEY": "your-api-key" }
+    }
+  }
+}
+```
+
+### 3. Python (this skill)
+
+```json
+{
+  "mcpServers": {
+    "runware-python": {
+      "command": "python",
+      "args": ["scripts/runware_mcp.py"]
+    }
+  }
+}
+```
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `scripts/generate.py` | Main multi-modal generator |
+| `scripts/runware_mcp.py` | MCP-style CLI tool interface |
+| `skill-config.json` | Default settings (no secrets) |
+| `SKILL.md` | OpenClaw skill metadata & usage |
+| `tests/test_generate.py` | Pytest tests |
+| `examples/` | Example commands |
 
 ## Configuration
 
-`skill-config.json` contains defaults used by the CLI. Fields:
+`skill-config.json` fields:
 
-- `default_size` - default image size (e.g., "1024x1024").
-- `default_format` - output format (png/jpg/webp).
-- `default_output_dir` - default output directory (for example, `~/runware_images` on Unix-like systems).
-- `last_output_dir` - automatically updated by the script to remember the last save location.
+- `default_size` — default image size (e.g. `"1024x1024"`)
+- `default_format` — output format (`png`/`jpg`/`webp`/`mp4`/`wav`/`glb`)
+- `default_output_dir` — default output directory
+- `last_output_dir` — auto-updated by the script
 
-Do NOT store API keys in this file. Use the `RUNWARE_API_KEY` environment variable or a secret manager.
+## CLI Reference
 
-## Safety
+### `scripts/generate.py`
 
-- The script implements a simple prompt filter to block prompts that reference minors (e.g., "teen", ages under 21). This is a lightweight safeguard but does not replace human judgment or platform policies.
-- Users are responsible for ensuring they have legal rights to generate and host requested imagery and for following Runware's terms of service.
+| Flag | Description |
+|------|-------------|
+| `--prompt` | Text prompt |
+| `--mode` | `image`, `video`, `audio`, `text`, or `3d` |
+| `--model` | Runware model ID (e.g. `runware:400@1`) |
+| `--size` | Dimensions (e.g. `1024x1024`) |
+| `--sync` / `--no-sync` | Sync vs async delivery |
+| `--duration` | Video duration (seconds) |
+| `--num-results` | Number of outputs |
+| `--extra KEY VALUE` | Extra payload parameters |
+| `--outfile` | Output filename |
 
-## Testing & CI
+### `scripts/runware_mcp.py`
 
-- Tests are in `tests/` and use pytest. The included test stubs/mocks `requests.post` so CI does not require real API keys.
-- GitHub Actions workflow `.github/workflows/ci.yml` runs the tests on push and pull requests.
+| Command | Description |
+|---------|-------------|
+| `run --prompt "..."` | Run inference task |
+| `list-models` | Browse model catalog |
+| `model-pricing --model X` | Get model pricing |
+| `model-details --model X` | Get model metadata |
+| `account` | Show account info & balance |
 
-Run tests locally:
+## Testing
 
 ```bash
 pytest -q
 ```
 
-## Examples
+Integration tests require `RUNWARE_API_KEY` set in the environment.
 
-See `examples/README.md` for example prompts and usage patterns (sync vs async).
+## Safety
 
-## Packaging & Publishing
+- Prompt filter blocks requests referencing minors
+- Users must follow [Runware's terms of service](https://runware.ai/terms)
+- API key stays client-side or in OAuth session — never committed
 
-Before publishing to ClawHub:
+## Architecture
 
-1. Ensure `skill-config.json` contains no secrets.
-2. Run tests and fix any issues.
-3. Optionally package the skill using the project packaging script (if available) or create a .zip that follows the skill layout.
+```mermaid
+graph TD
+    User[User / Terminal] -->|Prompt| Gen[scripts/generate.py]
+    User -->|Tool call| MCP[scripts/runware_mcp.py]
+    Gen -->|async with Runware| SDK[runware-sdk]
+    MCP -->|async with Runware| SDK
+    SDK -->|run()| API[Runware.ai API]
+    API -->|Results| SDK
+    SDK -->|Decoded output| Gen
+    SDK -->|Decoded output| MCP
+    Gen -->|Save| Output[Local file]
+    MCP -->|Print| Output2[JSON stdout]
 
-I can assist with creating the .skill package and publishing to ClawHub when you’re ready.
+    MCP_Client[MCP Client e.g. Claude Desktop]
+    MCP_Client -->|stdio / HTTP| MCP_Server["npx @runware/mcp"]
+    MCP_Server --> API
+```
 
-## Contributing
+## Migration from v1.x
 
-See `CONTRIBUTING.md` for contribution guidelines. Keep changes small, include tests, and run CI locally.
+| Old | New |
+|-----|-----|
+| `scripts/generate_image.py` | `scripts/generate.py` |
+| `requests.post` to `/v1/tasks` | `runware-sdk` `client.run()` |
+| Manual UUIDs & response parsing | SDK handles schema, validation, delivery |
+| Image-only | Image + video + audio + text + 3D |
+| Python 3.8+ | Python 3.11+ |
 
 ## Author
 
-- **Shobhit Kumar Prabhaar** - [GitHub Profile](https://github.com/GeekLord/)
+**Shobhit Kumar Prabhakar** — [@GeekLord](https://github.com/GeekLord/)
 
 ## License
 
-This project is licensed under the MIT License - see LICENSE.
+MIT — see LICENSE.
 
-## Contact / Support
+## Links
 
-Open an issue or a pull request on the repository. For Runware API specifics, consult: https://runware.ai/docs/getting-started/introduction
+- [Runware MCP Server](https://runware.ai/mcp)
+- [Runware MCP Docs](https://runware.ai/docs/platform/mcp)
+- [Runware Python SDK](https://runware.ai/docs/platform/python)
+- [Official @runware/mcp GitHub](https://github.com/runware/mcp)

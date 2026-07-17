@@ -1,98 +1,189 @@
 ---
-name: runware-image
-version: 1.0.0
+name: runware-mcp
+version: 2.0.0
 author: Shobhit Kumar Prabhakar
-description: Generate high-quality images on-demand via the Runware.ai API. This skill is the default image generator. Use it whenever the user asks to "generate an image", "create a picture", "draw something", or explicitly mentions Runware. It handles text-to-image generation with comprehensive safety checks.
+description: Generate images, videos, audio, text, and 3D models via the Runware.ai MCP server and official Python SDK. Handles multi-modal generation, model browsing, pricing lookup, and account management.
 ---
 
-Runware Image Skill
+# Runware MCP Skill
 
-Purpose
+A modern, multi-modal skill for generating media via [Runware.ai](https://runware.ai) using the official `runware-sdk` Python library.
 
-Provide a secure, documented, and testable integration for generating images via the Runware.ai Image Inference API.
+## What's New in v2.0
 
-IMPORTANT INSTRUCTIONS FOR AGENT:
-1. **Do NOT ask the user for the RUNWARE_API_KEY.** The script automatically loads it from the `.env` file in the skill directory.
-2. **Do NOT ask clarifying questions** (style, size, etc.) unless the user's prompt is extremely vague. For requests like "generate a man on the moon", use your best judgment for the prompt and run the script immediately.
-3. **Execute the script directly.** Do not propose it.
+- **Multi-modal** — image, video, audio, text, and 3D generation from one script
+- **Official SDK** — uses `runware-sdk` (async, typed, validated) instead of raw REST
+- **MCP integration** — new `scripts/runware_mcp.py` exposes MCP-style tools (`run`, `list-models`, `model-pricing`, `model-details`, `account`)
+- **Better defaults** — sensible model picks per mode, configurable via CLI
+- **Python 3.11+** — requires modern Python for full async SDK support
 
-What it does
+## Files
 
-- Send text-to-image tasks to Runware's task API (imageInference).
-- Support synchronous (sync) responses returning base64 image data and asynchronous workflows (webhook/polling) if required.
-- Save generated images to the user's Downloads folder by default.
-- Validate prompts for common safety issues (e.g., minors) before sending requests.
+| File | Purpose |
+|------|---------|
+| `scripts/generate.py` | Main multi-modal generator (CLI) |
+| `scripts/runware_mcp.py` | MCP-style tool interface (CLI) |
+| `skill-config.json` | Default settings (no secrets) |
+| `tests/test_generate.py` | Pytest unit tests for the generator |
 
-Included files
+## Prerequisites
 
-- scripts/generate_image.py — Primary CLI script (Python 3.8+). Reads RUNWARE_API_KEY from environment, supports sync mode, size/format options, and output filename.
-- skill-config.json — default parameters (no secrets). Contains default_size and default_format.
-- SKILL.md — this metadata and usage file.
+- **Python 3.11+**
+- **Runware API key** — get one at [runware.ai](https://runware.ai)
+- Install dependencies:
+  ```bash
+  pip install -r requirements.txt
+  ```
 
-Security & secrets
+## Quick Start
 
-- DO NOT commit API keys. This skill requires RUNWARE_API_KEY to be provided via the environment when executed (export RUNWARE_API_KEY=...) or via a secure secret manager.
-- The packaged version uploaded to ClawHub must not include any API keys. Before publishing, confirm skill-config.json contains NO sensitive values.
-- The script performs simple prompt filtering; users should still follow platform content policies.
+Set your API key in `.env` or the environment:
 
-Usage (CLI)
+```bash
+echo "RUNWARE_API_KEY=your_key_here" > .env
+```
 
-1. Install dependencies
-   - pip install -r requirements.txt
-   (The script uses requests and python-dotenv; keep requirements minimal.)
+### Generate an image
 
-2. Set your Runware API key. You can create a `.env` file in the skill directory:
-   `RUNWARE_API_KEY=your_key_here`
-   Or set it in your environment:
-   $env:RUNWARE_API_KEY = "<YOUR_KEY>"
+```bash
+python scripts/generate.py --prompt "A mountain landscape at sunset" --mode image --outfile sunset.png
+```
 
-3. Run the script (sync mode):
-   python scripts/generate_image.py --prompt "A photorealistic adult portrait (age 25)" --sync --outfile "my_image.png"
+### Generate a video
 
-4. For non-sync workflows, omit --sync and implement webhook handling or polling as described in the Runware docs.
+```bash
+python scripts/generate.py --prompt "Waves crashing on a beach" --mode video --duration 8 --outfile beach.mp4
+```
 
-Configuration
+### Generate text
 
-- skill-config.json fields:
-  - default_size: e.g. "1024x1024"
-  - default_format: e.g. "png"
+```bash
+python scripts/generate.py --prompt "Write a haiku about AI" --mode text --outfile haiku.txt
+```
 
-Packaging & publishing (ClawHub)
+### MCP-style: list models
 
-Checklist before publishing:
-- Remove any plaintext API keys from skill-config.json (already removed).
-- Add a short one-line license (MIT recommended) in LICENSE file.
-- Add a small tests/ directory with a smoke test that verifies parsing logic and saved file behavior using temporary directories. Tests may require RUNWARE_API_KEY for live integration or can be skipped in CI if secrets are not provided.
-- Ensure SKILL.md frontmatter (name + description) is accurate and includes trigger phrases.
-- Provide example prompts and recommended safety guidance in SKILL.md.
+```bash
+python scripts/runware_mcp.py list-models --category image --search "flux"
+```
 
-Suggested repository structure
+### MCP-style: get pricing
 
-runware-image/
-├── SKILL.md
-├── skill-config.json
-├── scripts/
-│   └── generate_image.py
-├── requirements.txt
-├── LICENSE
-└── tests/
-    └── test_generate_image.py
+```bash
+python scripts/runware_mcp.py model-pricing --model "runware:101@1"
+```
 
-Tests and CI
+### MCP-style: check account balance
 
-- Include a minimal pytest-based test that stubs requests.post and verifies parsing logic and saved file behavior using temporary directories.
-- Add GitHub Actions workflow (optional) that runs tests on push.
+```bash
+python scripts/runware_mcp.py account
+```
 
-Contribution & support
+## Usage Notes
 
-- Include a short CONTRIBUTING.md describing how to run tests, where to report issues, and how to add features (e.g., support for ControlNet, LoRA, or custom models).
-- Provide an examples/ folder with 2–3 example prompts and expected CLI commands.
+### CLI flags for `generate.py`
 
-Licensing
+| Flag | Description |
+|------|-------------|
+| `--prompt` | Text prompt (required unless mode=text with default prompt) |
+| `--mode` | One of: `image`, `video`, `audio`, `text`, `3d` |
+| `--model` | Runware model ID (e.g. `runware:400@1`, `klingai:kling-video@3-4k`) |
+| `--size` | Dimensions: `1024x1024` |
+| `--sync` / `--no-sync` | Sync delivery (default) vs async polling |
+| `--duration` | Video duration in seconds |
+| `--num-results` | Number of results to generate |
+| `--extra KEY VALUE` | Extra payload parameters (repeatable) |
+| `--outfile` | Output filename |
 
-- Recommend MIT license for public sharing unless you prefer another OSI-approved license.
+## Safety
 
-Privacy and usage notes
+The skill includes a lightweight prompt filter to block prompts referencing minors.
+This is a basic safeguard — users must follow Runware's content policy.
 
-- Make it explicit that the skill does not collect or store user prompts or keys on the server. All generation is performed using the user's Runware account.
-- Recommend users review Runware's terms and ensure they have rights to generate/host the requested imagery.
+## MCP Server Connection
+
+To connect this skill as an MCP server in any MCP-compatible client:
+
+1. **Hosted server** (easiest — no setup):
+   ```json
+   {
+     "mcpServers": {
+       "runware": {
+         "url": "https://mcp.runware.ai"
+       }
+     }
+   }
+   ```
+   This connects directly to Runware's hosted MCP server at `mcp.runware.ai`.
+   Authentication is handled via OAuth 2.1 — your API key stays server-side.
+
+2. **Local stdio server** (self-hosted):
+   ```json
+   {
+     "mcpServers": {
+       "runware": {
+         "command": "npx",
+         "args": ["-y", "@runware/mcp"],
+         "env": {
+           "RUNWARE_API_KEY": "your-api-key"
+         }
+       }
+     }
+   }
+   ```
+   The official `@runware/mcp` package exposes the same tool set.
+
+3. **via runware-sdk** (Python, this skill):
+   ```json
+   {
+     "mcpServers": {
+       "runware-python": {
+         "command": "python",
+         "args": ["scripts/runware_mcp.py"]
+       }
+     }
+   }
+   ```
+
+Tools exposed by the MCP server:
+- **run** — execute any Runware inference task
+- **list_models** — browse the curated model catalog
+- **model_pricing** — get pricing for a model
+- **model_details** — full metadata for a model
+- **account** — account info and balance
+- **model_schema** — fetch the parameter schema for a model
+- **get_task_details** — look up a previous task
+
+## Integration with OpenClaw
+
+This skill is compatible with OpenClaw's skill system. After installing dependencies,
+an OpenClaw agent can invoke:
+
+```python
+# Example agent action:
+python scripts/generate.py --prompt "cat portrait" --mode image
+```
+
+The agent will automatically:
+1. Load the API key from `.env`
+2. Choose the right model and parameters
+3. Generate and save the result
+
+## Testing
+
+```bash
+pytest -q
+```
+
+Integration tests require `RUNWARE_API_KEY` set in the environment.
+
+## Migration from v1.x
+
+If you were using the old `generate_image.py` (raw REST API):
+
+- Run `pip install runware-sdk` to get the new SDK
+- Replace `scripts/generate_image.py` with `scripts/generate.py`
+- All v1 CLI flags (`--prompt`, `--outfile`, `--size`, `--model`, `--num-results`, `--sync`) still work
+- New: `--mode` flag, `--extra`, `--duration`
+- The SDK handles sync/async delivery, schema validation, error codes
+- New MCP-style `scripts/runware_mcp.py` for tool-oriented usage
