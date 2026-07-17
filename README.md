@@ -152,7 +152,7 @@ graph TD
     User -->|Tool call| MCP[scripts/runware_mcp.py]
     Gen -->|async with Runware| SDK[runware-sdk]
     MCP -->|async with Runware| SDK
-    SDK -->|run()| API[Runware.ai API]
+    SDK -->|"run()"| API[Runware.ai API]
     API -->|Results| SDK
     SDK -->|Decoded output| Gen
     SDK -->|Decoded output| MCP
