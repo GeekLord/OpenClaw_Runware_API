@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Generate media via Runware.ai SDK — image, video, audio, text, 3D — and save results.
+Generate media with the Runware.ai SDK: image, video, audio, text, and 3D.
 
 Usage:
   python scripts/generate.py --prompt "..." [--outfile NAME] [--size 1024x1024] [--model "runware:400@1"] [--mode image]
   python scripts/generate.py --prompt "..." --mode video --duration 8
 
 Supports sync delivery for fast tasks (images) and async polling for long tasks (video).
-Uses the official `runware-sdk` (Python 3.11+).
+Uses the official runware-sdk package (Python 3.11+).
 
-Requires RUNWARE_API_KEY env variable.
+Requires the RUNWARE_API_KEY environment variable.
 """
 
 import argparse
@@ -24,7 +24,8 @@ from pathlib import Path
 try:
     from dotenv import load_dotenv
 except ImportError:
-    def load_dotenv(path): pass
+    def load_dotenv(path):
+        pass
 
 HERE = Path(__file__).resolve().parent.parent
 CONFIG_PATH = HERE / "skill-config.json"
@@ -32,7 +33,8 @@ ENV_PATH = HERE / ".env"
 
 load_dotenv(ENV_PATH)
 
-# ── Lazy SDK import with friendly error ──────────────────────────────────────
+# Lazy SDK import with friendly error message
+
 
 def _import_runware():
     try:
@@ -44,7 +46,7 @@ def _import_runware():
         sys.exit(1)
 
 
-# ── Modes & helpers ──────────────────────────────────────────────────────────
+# Modes and task mappings
 
 SUPPORTED_MODES = frozenset({"image", "video", "audio", "text", "3d"})
 
@@ -105,7 +107,7 @@ async def run_generation(
         payload.pop("height", None)
         payload["messages"] = [{"role": "user", "content": prompt}]
 
-    # Merge extra payload keys (e.g. --extra "negativePrompt=blurry" --extra "CFGScale=7")
+    # Merge extra payload keys (e.g. --extra negativePrompt blurry)
     for k, v in extra_payload.items():
         if v is not None:
             try:
@@ -149,9 +151,17 @@ def _default_model(mode: str) -> str:
 
 
 def _parse_size(size: str) -> tuple[int, int]:
-    if "x" in size:
-        parts = size.split("x")
-        return int(parts[0]), int(parts[1])
+    if not size:
+        return 1024, 1024
+    for sep in ("x", "X", "*"):
+        if sep in size:
+            parts = size.split(sep, 1)
+            try:
+                w, h = int(parts[0].strip()), int(parts[1].strip())
+                if w > 0 and h > 0:
+                    return w, h
+            except ValueError:
+                pass
     return 1024, 1024
 
 
@@ -176,13 +186,19 @@ def _slugify(s: str, max_len: int = 50) -> str:
     return s or "media"
 
 
-def _save_results(results: list[dict], ext: str, outfile: str | None, cfg: dict):
+def _save_results(
+    results: list[dict],
+    ext: str,
+    outfile: str | None,
+    cfg: dict,
+    prompt: str = "",
+    config_path: Path | None = CONFIG_PATH,
+):
     """Save each result (image, video URL, text content, etc.) to disk."""
     saved_paths = []
 
     for idx, item in enumerate(results):
-        # Determine output path
-        out = _resolve_outpath(idx, ext, outfile, cfg)
+        out = _resolve_outpath(idx, ext, outfile, cfg, prompt=prompt)
         suffix = "" if len(results) == 1 else f"_{idx}"
         if suffix and outfile and not outfile.endswith(suffix + "."):
             stem = out.stem + suffix
@@ -225,15 +241,15 @@ def _save_results(results: list[dict], ext: str, outfile: str | None, cfg: dict)
             print(f"[{idx}] Saved metadata: {out}")
 
     # Remember last used directory
-    if saved_paths:
+    if saved_paths and config_path:
         try:
             cfg["last_output_dir"] = str(saved_paths[0].parent)
-            CONFIG_PATH.write_text(json.dumps(cfg, indent=2))
+            config_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
         except Exception:
             pass
 
 
-def _resolve_outpath(idx: int, ext: str, outfile: str | None, cfg: dict) -> Path:
+def _resolve_outpath(idx: int, ext: str, outfile: str | None, cfg: dict, prompt: str = "") -> Path:
     default_dir = cfg.get("default_output_dir", "~/runware_output")
     last_dir = cfg.get("last_output_dir")
 
@@ -250,44 +266,49 @@ def _resolve_outpath(idx: int, ext: str, outfile: str | None, cfg: dict) -> Path
 
     out_dir = Path(last_dir).expanduser() if last_dir else Path(default_dir).expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
-    slug = _slugify("")
+    slug = _slugify(prompt)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     return out_dir / f"{slug}_{ts}_{idx}.{ext}"
 
 
 def _download_file(url: str, dest: Path):
     import urllib.request
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
+    )
     try:
-        urllib.request.urlretrieve(url, dest)
+        with urllib.request.urlopen(req) as resp, open(dest, "wb") as f:
+            f.write(resp.read())
     except Exception as e:
         print(f"  WARNING: failed to download {url}: {e}", file=sys.stderr)
 
 
-# ── CLI ──────────────────────────────────────────────────────────────────────
+# CLI interface
 
 def main():
     ap = argparse.ArgumentParser(
-        description="Runware.ai SDK generator — multi-modal (image / video / audio / text / 3D)",
+        description="Runware SDK generator for image, video, audio, text, and 3D media",
     )
     ap.add_argument("--prompt", help="Text prompt for generation")
     ap.add_argument("--mode", choices=sorted(SUPPORTED_MODES), default="image",
                     help="Generation mode (default: image)")
     ap.add_argument("--outfile", default=None,
-                    help="Output filename (relative → default dir, absolute → that path)")
+                    help="Output filename (relative paths go to the default output directory)")
     ap.add_argument("--size", default=None,
-                    help="Image/video dimensions e.g. 1024x1024 (default from config)")
+                    help="Dimensions such as 1024x1024 (defaults to skill-config.json)")
     ap.add_argument("--model", default=None,
-                    help="Runware model identifier e.g. runware:400@1, klingai:kling-video@3-4k")
+                    help="Runware model identifier (e.g. runware:400@1, klingai:kling-video@3-4k)")
     ap.add_argument("--sync", action="store_true", default=True,
                     help="Use sync delivery (default)")
     ap.add_argument("--no-sync", action="store_false", dest="sync",
-                    help="Use async delivery (polling)")
+                    help="Use async delivery with polling")
     ap.add_argument("--num-results", type=int, default=1,
                     help="Number of results to generate (default: 1)")
     ap.add_argument("--duration", type=int, default=None,
                     help="Video duration in seconds (video mode only)")
     ap.add_argument("--format", dest="output_format", default=None,
-                    help="Output format override (png, jpg, mp4, wav, etc.)")
+                    help="Output format override (png, jpg, mp4, wav, glb)")
     ap.add_argument("--extra", action="append", nargs=2, metavar=("KEY", "VALUE"),
                     default=[], help="Extra payload key-value pairs (repeatable)")
 
@@ -298,7 +319,7 @@ def main():
         print("ERROR: --prompt is required for this mode.", file=sys.stderr)
         sys.exit(1)
 
-    cfg = json.loads(CONFIG_PATH.read_text()) if CONFIG_PATH.exists() else {}
+    cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8")) if CONFIG_PATH.exists() else {}
     size = args.size or cfg.get("default_size", "1024x1024")
     out_format = args.output_format or cfg.get("default_format", "png")
 
@@ -318,10 +339,9 @@ def main():
         )
     )
 
-    _save_results(results, ext, args.outfile, cfg)
+    _save_results(results, ext, args.outfile, cfg, prompt=prompt or "", config_path=CONFIG_PATH)
 
-    # Report metadata
-    print(f"\nDone! Generated {len(results)} result(s).")
+    print(f"\nDone. Generated {len(results)} result(s).")
 
 
 if __name__ == "__main__":

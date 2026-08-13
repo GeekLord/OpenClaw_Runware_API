@@ -1,4 +1,4 @@
-# Example Commands
+# Example commands
 
 ## Images
 
@@ -26,14 +26,14 @@ python scripts/generate.py --prompt "Cinematic drone shot over mountains" --mode
 ## Audio
 
 ```bash
-# Text-to-speech
+# Text-to-speech audio
 python scripts/generate.py --prompt "Welcome to the future of AI generation" --mode audio --model "inworld:tts-1.5-max@1" --outfile welcome.wav
 ```
 
 ## Text
 
 ```bash
-# LLM inference
+# Text generation with an LLM
 python scripts/generate.py --prompt "Write a short poem about artificial intelligence" --mode text --outfile poem.txt
 ```
 
@@ -41,7 +41,7 @@ python scripts/generate.py --prompt "Write a short poem about artificial intelli
 
 ```bash
 # 3D model generation
-python scripts/generate.py --prompt "A low-poly chair" --mode 3d --outfile chair.glb
+python scripts/generate.py --prompt "A low-poly wooden chair" --mode 3d --outfile chair.glb
 ```
 
 ## MCP-style CLI
@@ -50,19 +50,19 @@ python scripts/generate.py --prompt "A low-poly chair" --mode 3d --outfile chair
 # Browse image models
 python scripts/runware_mcp.py list-models --category image --search "flux"
 
-# Get pricing
+# Check model pricing
 python scripts/runware_mcp.py model-pricing --model "runware:101@1"
 
 # Check account balance
 python scripts/runware_mcp.py account
 
-# Run via MCP tool
+# Run via MCP CLI tool
 python scripts/runware_mcp.py run --prompt "A cat in a forest" --mode image
 ```
 
 ## Async mode (polling)
 
 ```bash
-# Long task with async delivery
+# Asynchronous video generation with polling
 python scripts/generate.py --prompt "Cinematic spaceship launch" --mode video --no-sync --duration 12 --outfile launch.mp4
 ```

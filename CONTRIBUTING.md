@@ -1,31 +1,31 @@
 # Contributing to runware-mcp
 
-Thank you for your interest in improving this skill!
+Thank you for helping improve this project.
 
-## Getting Started
+## Getting started
 
-1. Fork the repository and submit a pull request against `main`.
-2. Install development dependencies: `pip install -r requirements.txt`
-3. Run tests: `pytest -q`
-4. For integration tests, set `RUNWARE_API_KEY` in your environment.
+1. Fork the repository and open a pull request against `main`.
+2. Install development packages: `pip install -r requirements.txt`
+3. Run the test suite: `pytest -q -m "not integration"`
+4. To run live integration tests, set `RUNWARE_API_KEY` in your environment.
 
 ## Guidelines
 
-- **Keep changes focused** — open separate PRs for separate features
-- **Include tests** — add unit tests for new behaviors, update existing tests when behavior changes
-- **Update docs** — if you add a feature, update `SKILL.md`, `README.md`, and examples as appropriate
-- **Use clear commit messages** — reference issue numbers where applicable
-- **Minimal dependencies** — avoid adding new packages unless necessary
+- Keep pull requests focused on a single change or feature.
+- Include unit tests for bug fixes or new functionality.
+- Update `SKILL.md`, `README.md`, and `examples/README.md` when changing CLI arguments or default settings.
+- Write clear commit messages.
+- Keep external dependencies minimal.
 
-## Adding a New Mode
+## Adding a new mode
 
-To add a new generation mode (e.g., a new modality):
+When adding a new generation modality:
 
-1. Add the mode to `SUPPORTED_MODES`, `MODES_TO_TASKTYPE`, `MODES_TO_EXT`, and `_default_model()` in `scripts/generate.py`
-2. Add the corresponding `--mode` choice in `scripts/runware_mcp.py`
-3. Update tests accordingly
-4. Add example commands to `examples/README.md`
+1. Update `SUPPORTED_MODES`, `MODES_TO_TASKTYPE`, `MODES_TO_EXT`, and `_default_model()` in `scripts/generate.py`.
+2. Update the `--mode` choices in `scripts/runware_mcp.py`.
+3. Add corresponding tests in `tests/test_generate.py` and `tests/test_runware_mcp.py`.
+4. Add example commands in `examples/README.md`.
 
-## Reporting Issues
+## Reporting issues
 
-Open issues for bugs, feature requests, or documentation corrections. Include steps to reproduce and minimal examples when possible.
+Open an issue for bugs, documentation errors, or feature suggestions. Please include steps to reproduce unexpected behavior and sample inputs when possible.

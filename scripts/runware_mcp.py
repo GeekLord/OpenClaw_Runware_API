@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-Runware MCP Client — connect to the Runware MCP server and run multi-modal
-generation tasks through any MCP-compatible client.
+Runware MCP client: connect to Runware services and run multi-modal
+generation tasks through an MCP-style tool interface.
 
-This script can:
-  1. Run as a standalone MCP stdio server (for Claude Desktop, Cursor, etc.)
-  2. Run one-shot tasks via the Runware API with the same MCP-style tool interface
+This script supports:
+  1. Running as an MCP tool interface
+  2. Running one-shot tasks with the Runware API
 
-Requires RUNWARE_API_KEY env variable.
-
-Usage (one-shot):
+Usage:
   python scripts/runware_mcp.py run --prompt "cat" --mode image
   python scripts/runware_mcp.py list-models --category image
   python scripts/runware_mcp.py model-pricing --model "runware:101@1"
+
+Requires the RUNWARE_API_KEY environment variable.
 """
 
 import argparse
@@ -25,7 +25,8 @@ from pathlib import Path
 try:
     from dotenv import load_dotenv
 except ImportError:
-    def load_dotenv(path): pass
+    def load_dotenv(path):
+        pass
 
 HERE = Path(__file__).resolve().parent.parent
 ENV_PATH = HERE / ".env"
@@ -41,10 +42,7 @@ def _import_runware():
         sys.exit(1)
 
 
-Runware, RunwareError = _import_runware()
-
-
-# ── MCP-style tool wrappers ────────────────────────────────────────────────
+# MCP-style tool wrappers
 
 async def tool_run(
     prompt: str,
@@ -57,7 +55,9 @@ async def tool_run(
     sync: bool = True,
     **extra: str,
 ) -> list[dict]:
-    """MCP-style 'run' tool: execute any Runware inference task."""
+    """Execute any Runware inference task."""
+    Runware, RunwareError = _import_runware()
+
     api_key = os.environ.get("RUNWARE_API_KEY")
     if not api_key:
         raise RuntimeError("RUNWARE_API_KEY not set")
@@ -70,15 +70,17 @@ async def tool_run(
         "3d": "threeDInference",
     }
 
+    default_models = {
+        "image": "runware:101@1",
+        "video": "klingai:kling-video@3-4k",
+        "audio": "inworld:tts-1.5-max@1",
+        "text": "deepseek:deepseek-v4-chat@1",
+        "3d": "runware:3d@1",
+    }
+
     payload: dict = {
         "taskType": task_type_map.get(mode, "imageInference"),
-        "model": model or {
-            "image": "runware:101@1",
-            "video": "klingai:kling-video@3-4k",
-            "audio": "inworld:tts-1.5-max@1",
-            "text": "deepseek:deepseek-v4-chat@1",
-            "3d": "runware:3d@1",
-        }.get(mode, "runware:101@1"),
+        "model": model or default_models.get(mode, "runware:101@1"),
         "positivePrompt": prompt,
         "width": width,
         "height": height,
@@ -89,12 +91,18 @@ async def tool_run(
     if mode == "video" and duration:
         payload["duration"] = duration
     if mode == "text":
-        payload.pop("positivePrompt")
+        payload.pop("positivePrompt", None)
         payload.pop("width", None)
         payload.pop("height", None)
         payload["messages"] = [{"role": "user", "content": prompt}]
 
-    payload.update({k: v for k, v in extra.items() if v is not None})
+    for k, v in extra.items():
+        if v is not None:
+            try:
+                v = json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                pass
+            payload[k] = v
 
     async with Runware(api_key=api_key, transport="rest") as client:
         try:
@@ -110,7 +118,9 @@ async def tool_list_models(
     creator: str | None = None,
     search: str | None = None,
 ) -> list[dict]:
-    """MCP-style 'list_models' tool: browse the curated model catalog."""
+    """Browse the model catalog."""
+    Runware, _ = _import_runware()
+
     api_key = os.environ.get("RUNWARE_API_KEY")
     if not api_key:
         raise RuntimeError("RUNWARE_API_KEY not set")
@@ -131,7 +141,9 @@ async def tool_list_models(
 
 
 async def tool_model_pricing(model_id: str) -> dict:
-    """MCP-style 'model_pricing' tool: fetch pricing for a model."""
+    """Fetch pricing for a given model."""
+    Runware, _ = _import_runware()
+
     api_key = os.environ.get("RUNWARE_API_KEY")
     if not api_key:
         raise RuntimeError("RUNWARE_API_KEY not set")
@@ -142,7 +154,9 @@ async def tool_model_pricing(model_id: str) -> dict:
 
 
 async def tool_model_details(model_id: str) -> dict:
-    """MCP-style 'model_details' tool: full metadata for a curated model."""
+    """Fetch metadata for a given model."""
+    Runware, _ = _import_runware()
+
     api_key = os.environ.get("RUNWARE_API_KEY")
     if not api_key:
         raise RuntimeError("RUNWARE_API_KEY not set")
@@ -153,7 +167,9 @@ async def tool_model_details(model_id: str) -> dict:
 
 
 async def tool_account() -> dict:
-    """MCP-style 'account' tool: retrieve account info and balance."""
+    """Retrieve account details and current balance."""
+    Runware, _ = _import_runware()
+
     api_key = os.environ.get("RUNWARE_API_KEY")
     if not api_key:
         raise RuntimeError("RUNWARE_API_KEY not set")
@@ -163,7 +179,7 @@ async def tool_account() -> dict:
     return account
 
 
-# ── CLI ─────────────────────────────────────────────────────────────────────
+# CLI routing
 
 CLI_TOOLS = {
     "run": tool_run,
@@ -174,40 +190,64 @@ CLI_TOOLS = {
 }
 
 
-def main():
-    ap = argparse.ArgumentParser(description="Runware MCP CLI — MCP-style tool interface")
+def build_parser() -> argparse.ArgumentParser:
+    ap = argparse.ArgumentParser(description="Runware MCP command-line tool interface")
     sub = ap.add_subparsers(dest="command", required=True)
 
-    # run
+    # run command
     p_run = sub.add_parser("run", help="Run any Runware inference task")
-    p_run.add_argument("--prompt", required=True)
-    p_run.add_argument("--model")
-    p_run.add_argument("--mode", choices=["image", "video", "audio", "text", "3d"], default="image")
-    p_run.add_argument("--width", type=int, default=1024)
-    p_run.add_argument("--height", type=int, default=1024)
-    p_run.add_argument("--num-results", type=int, default=1)
-    p_run.add_argument("--duration", type=int, help="Video duration (seconds)")
-    p_run.add_argument("--async", dest="sync", action="store_false", default=True)
-    p_run.add_argument("--extra", action="append", nargs=2, metavar=("KEY", "VALUE"), default=[])
+    p_run.add_argument("--prompt", required=True, help="Text prompt for generation")
+    p_run.add_argument("--model", help="Runware model ID")
+    p_run.add_argument(
+        "--mode",
+        choices=["image", "video", "audio", "text", "3d"],
+        default="image",
+        help="Inference mode (default: image)",
+    )
+    p_run.add_argument("--width", type=int, default=1024, help="Width in pixels")
+    p_run.add_argument("--height", type=int, default=1024, help="Height in pixels")
+    p_run.add_argument("--num-results", type=int, default=1, help="Number of results")
+    p_run.add_argument("--duration", type=int, help="Video duration in seconds")
+    p_run.add_argument(
+        "--no-sync",
+        "--async",
+        dest="sync",
+        action="store_false",
+        default=True,
+        help="Use async delivery with polling",
+    )
+    p_run.add_argument(
+        "--extra",
+        action="append",
+        nargs=2,
+        metavar=("KEY", "VALUE"),
+        default=[],
+        help="Extra payload key-value pairs (repeatable)",
+    )
 
-    # list-models
+    # list-models command
     p_list = sub.add_parser("list-models", help="Browse the model catalog")
-    p_list.add_argument("--category")
-    p_list.add_argument("--capability")
-    p_list.add_argument("--creator")
-    p_list.add_argument("--search")
+    p_list.add_argument("--category", help="Model category filter")
+    p_list.add_argument("--capability", help="Capability filter")
+    p_list.add_argument("--creator", help="Creator filter")
+    p_list.add_argument("--search", help="Search query")
 
-    # model-pricing
+    # model-pricing command
     p_price = sub.add_parser("model-pricing", help="Get pricing for a model")
-    p_price.add_argument("--model", required=True)
+    p_price.add_argument("--model", required=True, help="Model ID")
 
-    # model-details
-    p_detail = sub.add_parser("model-details", help="Get full metadata for a model")
-    p_detail.add_argument("--model", required=True)
+    # model-details command
+    p_detail = sub.add_parser("model-details", help="Get metadata for a model")
+    p_detail.add_argument("--model", required=True, help="Model ID")
 
-    # account
+    # account command
     sub.add_parser("account", help="Get account info and balance")
 
+    return ap
+
+
+def main():
+    ap = build_parser()
     args = ap.parse_args()
 
     if args.command not in CLI_TOOLS:
@@ -220,7 +260,7 @@ def main():
         if k != "command" and v is not None
     }
 
-    # Special handling: extra -> dict
+    # Special handling: convert extra list of pairs into dictionary
     if "extra" in kwargs:
         kwargs["extra"] = dict(kwargs.pop("extra"))
 

@@ -4,22 +4,22 @@
 [![Repository](https://img.shields.io/badge/Repository-OpenClaw__Runware__API-blue?style=flat&logo=github)](https://github.com/GeekLord/OpenClaw_Runware_API)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat&logo=python)](https://www.python.org/)
 
-**Multi-modal Runware.ai skill** — image, video, audio, text, and 3D generation via the official `runware-sdk` Python library, plus MCP-style tooling.
+OpenClaw skill for media generation with the official Runware Python SDK (`runware-sdk`) and Model Context Protocol (MCP) tooling. Supports image, video, audio, text, and 3D generation.
 
-This repository contains an OpenClaw-compatible skill that connects to [Runware.ai's MCP server](https://runware.ai/mcp) and exposes a clean Python CLI for generating media, browsing models, checking pricing, and managing your account.
+This repository connects to the [Runware MCP server](https://runware.ai/mcp) and provides a Python CLI to generate media, browse models, check pricing, and check account balances.
 
-## Features
+## Capabilities
 
-- **Multi-modal** — Generate images, videos, audio, text, and 3D models
-- **Official SDK** — Uses `runware-sdk` (async, typed, JSON-Schema validated)
-- **MCP integration** — MCP-style tools (`run`, `list-models`, `model-pricing`, `model-details`, `account`)
-- **Hosted MCP server** — Can connect directly to `https://mcp.runware.ai` (OAuth 2.1, no local install needed)
-- **Sync + async** — Sync delivery for fast tasks, async polling for long-running ones
-- **Safe-by-default** — Lightweight prompt filtering
-- **Configurable** — Default model, size, format via `skill-config.json`
-- **Tested** — Pytest unit tests + optional integration tests
+- Image, video, audio, text, and 3D generation
+- Direct integration with `runware-sdk` (async and schema validated)
+- MCP tool wrappers for `run`, `list-models`, `model-pricing`, `model-details`, and `account`
+- Connection options for hosted MCP (`https://mcp.runware.ai`), local npm package (`@runware/mcp`), or local Python scripts
+- Synchronous delivery for fast requests and asynchronous polling for long tasks
+- Prompt guard for minor safety
+- Configurable defaults in `skill-config.json`
+- Unit test suite with pytest
 
-## Quick Start
+## Quick start
 
 ```bash
 # Install dependencies
@@ -34,18 +34,18 @@ python scripts/generate.py --prompt "A serene mountain landscape" --mode image -
 # Generate a video
 python scripts/generate.py --prompt "Waves crashing on a beach" --mode video --duration 8 --outfile waves.mp4
 
-# Browse models via MCP-style CLI
+# Browse models via MCP CLI
 python scripts/runware_mcp.py list-models --category image --search "flux"
 
 # Check account balance
 python scripts/runware_mcp.py account
 ```
 
-## MCP Server Connection
+## MCP server connection
 
-### 1. Hosted (easiest — no install)
+### 1. Hosted server
 
-Any MCP-compatible client can connect to Runware's hosted server:
+Any MCP-compatible client can connect directly to Runware's hosted endpoint:
 
 ```json
 {
@@ -55,9 +55,9 @@ Any MCP-compatible client can connect to Runware's hosted server:
 }
 ```
 
-Authentication is handled via OAuth 2.1 — your API key stays server-side, encrypted in the OAuth session.
+Authentication uses OAuth 2.1, keeping the API key inside the session.
 
-### 2. Local (self-hosted)
+### 2. Local Node package
 
 ```json
 {
@@ -71,7 +71,7 @@ Authentication is handled via OAuth 2.1 — your API key stays server-side, encr
 }
 ```
 
-### 3. Python (this skill)
+### 3. Local Python script
 
 ```json
 {
@@ -88,61 +88,68 @@ Authentication is handled via OAuth 2.1 — your API key stays server-side, encr
 
 | File | Purpose |
 |------|---------|
-| `scripts/generate.py` | Main multi-modal generator |
-| `scripts/runware_mcp.py` | MCP-style CLI tool interface |
-| `skill-config.json` | Default settings (no secrets) |
-| `SKILL.md` | OpenClaw skill metadata & usage |
-| `tests/test_generate.py` | Pytest tests |
-| `examples/` | Example commands |
+| `scripts/generate.py` | CLI generator for all supported modalities |
+| `scripts/runware_mcp.py` | MCP CLI tool interface |
+| `skill-config.json` | Default settings (non-sensitive) |
+| `SKILL.md` | Skill definition and integration docs |
+| `tests/test_generate.py` | Unit and integration tests for generation |
+| `tests/test_runware_mcp.py` | Unit tests for MCP CLI interface |
+| `examples/` | Sample commands for each modality |
 
 ## Configuration
 
-`skill-config.json` fields:
+Default settings live in `skill-config.json`:
 
-- `default_size` — default image size (e.g. `"1024x1024"`)
-- `default_format` — output format (`png`/`jpg`/`webp`/`mp4`/`wav`/`glb`)
-- `default_output_dir` — default output directory
-- `last_output_dir` — auto-updated by the script
+- `default_size`: default image dimensions (e.g. `"1024x1024"`)
+- `default_format`: default output format (`png`, `jpg`, `mp4`, `wav`, `glb`)
+- `default_output_dir`: default save location
+- `last_output_dir`: automatically updated by the script after each save
 
-## CLI Reference
+## CLI reference
 
 ### `scripts/generate.py`
 
 | Flag | Description |
 |------|-------------|
-| `--prompt` | Text prompt |
-| `--mode` | `image`, `video`, `audio`, `text`, or `3d` |
-| `--model` | Runware model ID (e.g. `runware:400@1`) |
+| `--prompt` | Text prompt for generation |
+| `--mode` | Generation mode: `image`, `video`, `audio`, `text`, or `3d` |
+| `--model` | Model ID (e.g. `runware:400@1`) |
 | `--size` | Dimensions (e.g. `1024x1024`) |
-| `--sync` / `--no-sync` | Sync vs async delivery |
-| `--duration` | Video duration (seconds) |
-| `--num-results` | Number of outputs |
-| `--extra KEY VALUE` | Extra payload parameters |
-| `--outfile` | Output filename |
+| `--sync` / `--no-sync` | Synchronous delivery vs asynchronous polling |
+| `--duration` | Video duration in seconds |
+| `--num-results` | Number of outputs to create |
+| `--extra KEY VALUE` | Extra payload parameters (repeatable) |
+| `--outfile` | Output file path |
 
 ### `scripts/runware_mcp.py`
 
 | Command | Description |
 |---------|-------------|
-| `run --prompt "..."` | Run inference task |
-| `list-models` | Browse model catalog |
-| `model-pricing --model X` | Get model pricing |
+| `run --prompt "..."` | Run an inference task |
+| `list-models` | Browse the model catalog |
+| `model-pricing --model X` | Check pricing for a model |
 | `model-details --model X` | Get model metadata |
-| `account` | Show account info & balance |
+| `account` | View account details and balance |
 
 ## Testing
+
+Run unit tests:
+
+```bash
+pytest -q -m "not integration"
+```
+
+To run the live integration test, set `RUNWARE_API_KEY` in your environment:
 
 ```bash
 pytest -q
 ```
 
-Integration tests require `RUNWARE_API_KEY` set in the environment.
-
 ## Safety
 
-- Prompt filter blocks requests referencing minors
-- Users must follow [Runware's terms of service](https://runware.ai/terms)
-- API key stays client-side or in OAuth session — never committed
+- Prompts referencing minors are blocked locally before sending requests.
+- Requests must follow [Runware terms of service](https://runware.ai/terms).
+- API keys stay in local `.env` files or OAuth sessions and are never committed to version control.
 
 ## Architecture
 
@@ -152,7 +159,7 @@ graph TD
     User -->|Tool call| MCP[scripts/runware_mcp.py]
     Gen -->|async with Runware| SDK[runware-sdk]
     MCP -->|async with Runware| SDK
-    SDK -->|"run()"| API[Runware.ai API]
+    SDK -->|run| API[Runware.ai API]
     API -->|Results| SDK
     SDK -->|Decoded output| Gen
     SDK -->|Decoded output| MCP
@@ -160,31 +167,31 @@ graph TD
     MCP -->|Print| Output2[JSON stdout]
 
     MCP_Client[MCP Client e.g. Claude Desktop]
-    MCP_Client -->|stdio / HTTP| MCP_Server["npx @runware/mcp"]
+    MCP_Client -->|stdio / HTTP| MCP_Server[npx @runware/mcp]
     MCP_Server --> API
 ```
 
 ## Migration from v1.x
 
-| Old | New |
-|-----|-----|
+| Version 1.x | Version 2.0 |
+|-------------|-------------|
 | `scripts/generate_image.py` | `scripts/generate.py` |
-| `requests.post` to `/v1/tasks` | `runware-sdk` `client.run()` |
-| Manual UUIDs & response parsing | SDK handles schema, validation, delivery |
-| Image-only | Image + video + audio + text + 3D |
+| Direct HTTP calls to `/v1/tasks` | `runware-sdk` via `client.run()` |
+| Manual request IDs and payload formatting | SDK schema validation and delivery handling |
+| Image only | Image, video, audio, text, and 3D |
 | Python 3.8+ | Python 3.11+ |
 
 ## Author
 
-**Shobhit Kumar Prabhakar** — [@GeekLord](https://github.com/GeekLord/)
+**Shobhit Kumar Prabhakar** ([@GeekLord](https://github.com/GeekLord/))
 
 ## License
 
-MIT — see LICENSE.
+MIT (see LICENSE)
 
 ## Links
 
 - [Runware MCP Server](https://runware.ai/mcp)
-- [Runware MCP Docs](https://runware.ai/docs/platform/mcp)
+- [Runware MCP Documentation](https://runware.ai/docs/platform/mcp)
 - [Runware Python SDK](https://runware.ai/docs/platform/python)
-- [Official @runware/mcp GitHub](https://github.com/runware/mcp)
+- [Official @runware/mcp GitHub repository](https://github.com/runware/mcp)
